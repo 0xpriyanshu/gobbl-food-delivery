@@ -25,6 +25,28 @@ const GobblDeliverySystem = () => {
     payments: { totalRevenue: 0, pendingPayments: 0, completedPayments: 0 }
   });
 
+  useEffect(() => {
+    const welcomeMessages = [
+      {
+        sender: "bot",
+        text: "👋 Welcome to gobblHODL! I'm your personal pizza assistant."
+      },
+      {
+        sender: "bot",
+        text: "You can interact with me in several ways:"
+      },
+      {
+        sender: "bot",
+        text: "Ask for recommendations like 'I want a vegetarian pizza' or 'What's your spiciest pizza?'\n• Specify preferences like 'Show me pizzas under $15' or 'I want something with low calories'\n• Just tell me what you're craving, and I'll help you find the perfect pizza!"
+      },
+      {
+        sender: "bot",
+        text: "What kind of pizza are you in the mood for today? 🍕"
+      }
+    ];
+    setMessages(welcomeMessages);
+  }, []);
+
   const PREP_TIME = 8000;
   const DELIVERY_TIME = 10000;
 
@@ -477,7 +499,7 @@ const GobblDeliverySystem = () => {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               className="flex-grow p-2 rounded-lg bg-gray-700 text-white mr-2"
-              placeholder="Type your message..."
+              placeholder="Type your message here..."
             />
             <button
               onClick={sendMessage}
