@@ -263,6 +263,10 @@ const GobblDeliverySystem = () => {
             sender: "bot",
             text: `We'd love to hear your feedback! Please provide a rating (1-5) and a short review for your ${orderDetails.item}.`,
           },
+          {
+            sender: "bot",
+            text: "What kind of pizza would you like next? 🍕",
+          },
         ]);
       }, DELIVERY_TIME);
     }, PREP_TIME);
