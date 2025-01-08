@@ -349,6 +349,16 @@ const GobblDeliverySystem = () => {
   
     const userMessage = { sender: "user", text: input };
     setMessages((prev) => [...prev, userMessage]);
+
+    // Check if there's a pending review first by looking at the last bot message
+    const lastBotMessage = [...messages].reverse().find(msg => msg.sender === "bot");
+    const isAwaitingReview = lastBotMessage?.text.includes("Please provide a rating (1-5) and a short review");
+    
+    if (isAwaitingReview) {
+      processReview(input);
+      setInput("");
+      return;
+    }
   
     // Show typing indicator
     setMessages((prev) => [...prev, { sender: "bot", text: "Typing...", isTyping: true }]);
