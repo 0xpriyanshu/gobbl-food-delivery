@@ -1,12 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { MapPin, ChefHat, Truck, Star, Flame, Clock, Navigation, Store, DollarSign } from 'lucide-react';
-import Together from "together-ai";
 import EnhancedDeliveryMap from './EnhancedDeliveryMap';
-
-
-const together = new Together({
-    apiKey: import.meta.env.VITE_TOGETHER_API_KEY
-  });
 
 const GobblDeliverySystem = () => {
   const [messages, setMessages] = useState([]);
@@ -270,64 +264,27 @@ const GobblDeliverySystem = () => {
 
   const analyzePizzaRequest = async (userQuery) => {
     try {
-      const systemPrompt = `You are a Pizza Recommendation Expert, acting as a friendly, knowledgeable waiter at a top pizza joint. When a customer asks for a pizza, your job is to recommend the best options based on their preferences. Make sure to sound friendly, relaxed, and conversational, like you're chatting about their perfect pizza choice. Also, you’ll need to analyze the request, considering dietary preferences, calorie counts, spiciness levels, price ranges, and any other criteria they mention.
-  
-  Available pizzas with details:
-  ${JSON.stringify(pizzas, null, 2)}
-  
-  Rules:
-  1. Only recommend pizzas from the given list
-  2. Consider dietary preferences (vegetarian vs non-vegetarian)
-  3. Factor in price ranges when mentioned
-  4. Take calories into account for anyone looking to eat light or indulgent.
-  5. Consider spiciness preferences – let me know if it’s too hot to handle.
-  6. Match any ingredients or specific flavor preferences.
-  7. Pay attention to dietary restrictions or allergies (if they mention any, like dairy-free, gluten-free, etc.).
-  
-  Return response in this exact JSON format:
-  {
-    "recommendations": [pizza_ids],
-    "explanation": "very short explanation of why these pizzas were recommended",
-    "criteria_matched": ["list of criteria that influenced the selection"]
-  }
-  
-  For example, if someone asks for "vegetarian pizza with low calories", prioritize pizzas without meat and lower calorie counts.
-  
-  User query: ${userQuery}`;
-  
-      const response = await together.chat.completions.create({
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userQuery }
-        ],
-        model: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
-        temperature: 0.4,
-        top_p: 0.7,
-        top_k: 50,
-        repetition_penalty: 1,
-        stop: ["<|eot_id|>", "<|eom_id|>"]
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/pizza-recommendations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: userQuery }),
       });
   
-      let result;
-      try {
-        const content = response.choices[0].message.content;
-        // Find the JSON object in the response
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          result = JSON.parse(jsonMatch[0]);
-        } else {
-          console.error("No JSON found in response");
-          return null;
-        }
-      } catch (e) {
-        console.error("Failed to parse LLM response:", e);
-        return null;
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Backend Error:', errorData);
+        throw new Error(errorData.error || 'Failed to fetch recommendations');
       }
   
-      return result;
+      return await response.json(); // Expecting structured JSON from the backend
     } catch (error) {
-      console.error("Error calling Together AI:", error);
-      return null;
+      console.error('Error fetching recommendations:', error);
+      return {
+        recommendations: [],
+        explanation: 'Unable to process your request. Please try again later.',
+      };
     }
   };
 
@@ -393,33 +350,26 @@ const GobblDeliverySystem = () => {
     const userMessage = { sender: "user", text: input };
     setMessages((prev) => [...prev, userMessage]);
   
-    // Check if the bot is expecting a review
-    const lastBotMessage = messages[messages.length - 1]?.text || "";
-    if (lastBotMessage.includes("Please provide a rating")) {
-      processReview(input);
-      setInput("");
-      return;
-    }
-  
     // Show typing indicator
     setMessages((prev) => [...prev, { sender: "bot", text: "Typing...", isTyping: true }]);
   
     try {
       const analysis = await analyzePizzaRequest(input);
-      const suggestions = analysis?.recommendations 
-        ? analysis.recommendations.map(id => pizzas.find(p => p.id === id)).filter(Boolean)
-        : pizzas.slice(0, 4);
-
   
-      // Remove typing indicator and add response
+      // Match recommended pizza IDs to their details
+      const recommendedPizzas = analysis.recommendations.map((id) =>
+        pizzas.find((pizza) => pizza.id === id)
+      );
+  
+      // Remove typing indicator and display response
       setMessages((prev) => {
         const filtered = prev.filter((msg) => !msg.isTyping);
         return [
           ...filtered,
           {
             sender: "bot",
-            text: analysis?.explanation || "Here are some pizzas you might like:",
-            suggestions,
+            text: analysis.explanation || "Here are some pizzas you might like:",
+            suggestions: recommendedPizzas,
           },
         ];
       });
@@ -432,7 +382,7 @@ const GobblDeliverySystem = () => {
           {
             sender: "bot",
             text: "I apologize, but I encountered an error processing your request. Let me show you our popular options instead.",
-            suggestions: pizzas.slice(0, 4),
+            suggestions: pizzas.slice(0, 4), // Default popular pizzas
           },
         ];
       });
@@ -465,7 +415,7 @@ const GobblDeliverySystem = () => {
       <main className="flex-grow grid grid-cols-2 gap-4 p-6">
         {/* Chatbot Section */}
         <div className="col-span-1 border-4 border-green-400 rounded-lg p-6 bg-gray-800">
-          <div className="h-[70vh] overflow-y-auto mb-4 w-full">
+        <div className="h-[70vh] overflow-y-auto mb-4 w-full">
             {messages.map((msg, index) => (
               <div key={index} className={`mb-4 ${msg.sender === "user" ? "text-right" : "text-left"}`}>
                 <p className={`inline-block p-3 rounded-lg ${msg.sender === "user" ? "bg-blue-500" : "bg-gray-700"}`}>{msg.text}</p>
@@ -483,7 +433,7 @@ const GobblDeliverySystem = () => {
                         <p className="text-sm text-gray-400 mb-2">{pizza.description}</p>
                         <p className="text-sm text-green-400 font-bold mb-2">${pizza.price}</p>
                         <p className="text-sm text-yellow-400 mb-2">Calories: {pizza.calories}</p>
-                        <p className="text-sm text-blue-400 mb-2">Rating: {pizza.rating}</p>
+                        <p className="text-sm text-blue-400 mb-2">Spicy Level: {pizza.spicyLevel}</p>
                         <button
                           onClick={() => handleOrder({ item: pizza.name, price: pizza.price })}
                           className="bg-green-500 text-black py-1 px-4 rounded-lg hover:bg-green-400"
